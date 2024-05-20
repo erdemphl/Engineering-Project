@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pawn Chess Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: url('/static/bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+            margin: 0;
+            overflow: hidden; /* Arka planın tam görünmesini sağlar */
+        }
+        .blur-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: inherit;
+            filter: blur(50px);
+            z-index: -1;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            position: relative; /* Blur efekti arka planda kalacak */
+            z-index: 1; /* Blur efektin üstünde görünmesi için */
+        }
+        select, button {
+            margin: 10px 0;
+            padding: 10px;
+            width: 200px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="blur-background"></div>
+    <div class="container">
+        <h1>Pawn Chess Game</h1>
+        <form action="/start_game" method="get">
+            <label for="board_size">Board Size:</label>
+            <select name="board_size" id="board_size">
+                <option value="5">5x5</option>
+                <option value="6">6x6</option>
+                <option value="8">8x8</option>
+            </select><br>
+            <label for="piece_color">Piece Color:</label>
+            <select name="piece_color" id="piece_color">
+                <option value="white">White</option>
+                <option value="black">Black</option>
+            </select><br>
+            <button type="submit">Start Game</button>
+        </form>
+    </div>
+</body>
+</html>

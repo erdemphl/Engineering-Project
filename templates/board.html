@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pawn Chess Game Board</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: url('/static/bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .blur-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: inherit;
+            filter: blur(50px);
+            z-index: -1;
+        }
+        .container {
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 90vw;
+            max-width: 500px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .board-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+        }
+        .board {
+            display: grid;
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        .board div {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .board div:hover {
+            transform: scale(1.1);
+        }
+        .light-square, .dark-square {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .light-square {
+            background-color: rgb(210, 180, 140);
+        }
+        .dark-square {
+            background-color: rgb(255, 248, 220);
+        }
+        .white-piece, .black-piece {
+            background-size: contain;
+            width: 80%;
+            height: 80%;
+            opacity: 0; /* Başlangıçta opaklık 0 */
+            transform: translateY(-20px); /* Başlangıçta biraz yukarıda */
+            animation: placePiece 0.5s forwards;
+        }
+        .white-piece {
+            background-image: url('/static/white_piece.png');
+        }
+        .black-piece {
+            background-image: url('/static/black_piece.png');
+        }
+        @keyframes placePiece {
+            to {
+                opacity: 1; /* Opaklık 1 */
+                transform: translateY(0); /* Yere sıfır konum */
+            }
+        }
+        .clicked {
+            animation: clickAnimation 0.5s forwards;
+        }
+        @keyframes clickAnimation {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .selected {
+            box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.7);
+            border: 2px solid rgba(255, 215, 0, 1);
+            animation: selectedGlow 1s infinite alternate;
+            z-index: 1;
+        }
+        @keyframes selectedGlow {
+            0% {
+                box-shadow: 0 0 10px 2px rgba(255, 215, 0, 0.5);
+                border-color: rgba(255, 215, 0, 0.5);
+            }
+            100% {
+                box-shadow: 0 0 20px 5px rgba(255, 215, 0, 1);
+                border-color: rgba(255, 215, 0, 1);
+            }
+        }
+        .controls {
+            display: flex;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .ready-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .ready-button:hover {
+            background-color: #45a049;
+        }
+        .move-log {
+            font-size: 16px;
+            font-weight: bold;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 5px;
+            margin-right: 10px; /* Boşluk sağlamak için */
+        }
+
+        /* Coordinate styles */
+        .coordinates {
+            position: absolute;
+            font-size: 14px;
+            font-weight: bold;
+            color: black;
+        }
+        .row-coords {
+            top: 0;
+            bottom: 0;
+            left: -20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .col-coords {
+            left: 0;
+            right: 0;
+            top: -20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .coordinates div {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+        }
+        .disabled {
+            pointer-events: none;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="blur-background"></div>
+    <div class="container">
+        <h1>Pawn Chess</h1>
+        <div class="board-container">
+            <div class="coordinates row-coords"></div>
+            <div class="coordinates col-coords"></div>
+            <div id="board" class="board disabled"></div>
+        </div>
+        <div class="controls">
+            <div class="move-log" id="move-log">Move: </div>
+            <button class="ready-button" onclick="ready()">Ready</button>
+        </div>
+        <!-- Mesaj kutusu -->
+        <div id="message-box" class="message-box">
+            <h2 id="message-text"></h2>
+        </div>
+        <script>
+            let userPieceClass = '';
+            let aiPieceClass = '';
+            let currentPlayer = 'user'; // User starts
+            let boardMatrix = []; // Matrix to store board state
+            let selectedCell = null;
+            let selectedCellCoords = null;
+            let moveLog = document.getElementById('move-log');
+
+            function createBoard(size, userColor) {
+                const board = document.getElementById('board');
+                document.documentElement.style.setProperty('--board-size', size);
+                board.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+                board.style.gridTemplateRows = `repeat(${size}, 1fr)`;
+
+                userPieceClass = userColor === 'white' ? 'white-piece' : 'black-piece';
+                aiPieceClass = userColor === 'white' ? 'black-piece' : 'white-piece';
+
+                boardMatrix = Array.from({ length: size }, () => Array(size).fill(0));
+                for (let row = 0; row < size; row++) {
+                    for (let col = 0; col < size; col++) {
+                        const cell = document.createElement('div');
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+
+                        if ((row + col) % 2 === 0) {
+                            cell.classList.add('light-square');
+                        } else {
+                            cell.classList.add('dark-square');
+                        }
+
+                        if (row < 2) {
+                            cell.innerHTML = `<div class="${aiPieceClass}"></div>`;
+                            boardMatrix[row][col] = userColor === 'white' ? -1 : 1; // Black pieces
+                        } else if (row >= size - 2) {
+                            cell.innerHTML = `<div class="${userPieceClass}"></div>`;
+                            boardMatrix[row][col] = userColor === 'white' ? 1 : -1; // White pieces
+                        }
+
+                        cell.addEventListener('click', () => {
+                            handleCellClick(cell);
+                        });
+                        board.appendChild(cell);
+                    }
+                }
+
+                const rowCoords = document.querySelector('.row-coords');
+                const colCoords = document.querySelector('.col-coords');
+                rowCoords.innerHTML = '';
+                colCoords.innerHTML = '';
+
+                const cols = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.slice(0, size);
+                for (let i = 0; i < size; i++) {
+                    rowCoords.innerHTML += `<div>${size - i}</div>`;
+                    colCoords.innerHTML += `<div>${cols[i]}</div>`;
+                }
+            }
+
+            function handleCellClick(cell) {
+                if (currentPlayer === 'user') {
+                    if (selectedCell) {
+                        if (cell !== selectedCell) {
+                            const pieceClass = selectedCell.querySelector('div').classList.contains('white-piece') ? 'white-piece' : 'black-piece';
+                            const targetPieceClass = cell.querySelector('div') ? cell.querySelector('div').classList.contains('white-piece') ? 'white-piece' : 'black-piece' : null;
+
+                            const selectedRow = parseInt(selectedCell.dataset.row);
+                            const selectedCol = parseInt(selectedCell.dataset.col);
+                            const targetRow = parseInt(cell.dataset.row);
+                            const targetCol = parseInt(cell.dataset.col);
+
+                            if (isMoveLegal(selectedRow, selectedCol, targetRow, targetCol, pieceClass)) {
+                                if (cell.querySelector('div') && cell.querySelector('div').classList.contains(userPieceClass)) {
+                                    selectedCell.classList.remove('selected');
+                                    cell.classList.add('selected');
+                                    selectedCell = cell;
+                                    selectedCellCoords = [targetRow, targetCol];
+                                } else {
+                                    movePiece(selectedCell, cell, pieceClass);
+                                    logMove('You', selectedRow, selectedCol, targetRow, targetCol);
+                                    selectedCell.classList.remove('selected');
+                                    selectedCell = null;
+                                    selectedCellCoords = null;
+
+                                    if (checkGameEnd()) {
+                                        return;
+                                    }
+
+                                    currentPlayer = 'ai';
+                                    aiMove();
+                                }
+                            } else {
+                                showMessage('Invalid move!', 3000);
+                            }
+                        } else {
+                            selectedCell.classList.remove('selected');
+                            selectedCell = null;
+                            selectedCellCoords = null;
+                        }
+                    } else if (cell.querySelector('div') && cell.querySelector('div').classList.contains(userPieceClass)) {
+                        cell.classList.add('selected');
+                        selectedCell = cell;
+                        selectedCellCoords = [parseInt(cell.dataset.row), parseInt(cell.dataset.col)];
+                    }
+                }
+            }
+
+            function isMoveLegal(fromRow, fromCol, toRow, toCol, pieceClass) {
+                const direction = (pieceClass === userPieceClass) ? -1 : 1;
+                const distance = toRow - fromRow;
+
+                if ((pieceClass === userPieceClass && distance >= 0) || (pieceClass === aiPieceClass && distance <= 0)) {
+                    return false;
+                }
+
+                if (fromCol === toCol) {
+                    if (Math.abs(distance) === 1 && boardMatrix[toRow][toCol] === 0) {
+                        return true;
+                    }
+                    if (Math.abs(distance) === 2 && boardMatrix[toRow][toCol] === 0 && boardMatrix[fromRow + direction][toCol] === 0 && Math.abs(boardMatrix[fromRow][fromCol]) === 1) {
+                        return true;
+                    }
+                }
+
+                if (Math.abs(fromCol - toCol) === 1 && Math.abs(distance) === 1) {
+                    if (boardMatrix[toRow][toCol] !== 0 && ((pieceClass === userPieceClass && Math.sign(boardMatrix[toRow][toCol]) !== Math.sign(boardMatrix[fromRow][fromCol])) ||
+                        (pieceClass === aiPieceClass && Math.sign(boardMatrix[toRow][toCol]) !== Math.sign(boardMatrix[fromRow][fromCol])))) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            function movePiece(fromCell, toCell, pieceClass) {
+                fromCell.querySelector('div').remove();
+                toCell.innerHTML = `<div class="${pieceClass}"></div>`;
+
+                boardMatrix[fromCell.dataset.row][fromCell.dataset.col] = 0;
+                boardMatrix[toCell.dataset.row][toCell.dataset.col] = pieceClass === 'white-piece' ? 2 : -2;
+            }
+
+            function aiMove() {
+                fetch('/ai_move', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        board_state: boardMatrix,
+                        piece_color: aiPieceClass
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message === 'Game is draw.') {
+                        showMessage('Game is draw.');
+                        return;
+                    }
+
+                    const from = data.from;
+                    const to = data.to;
+
+                    const fromCell = document.querySelector(`div[data-row="${from[0]}"][data-col="${from[1]}"]`);
+                    const toCell = document.querySelector(`div[data-row="${to[0]}"][data-col="${to[1]}"]`);
+
+                    if (fromCell.querySelector('div')) {
+                        const pieceClass = fromCell.querySelector('div').classList.contains('white-piece') ? 'white-piece' : 'black-piece';
+
+                        movePiece(fromCell, toCell, pieceClass);
+                        logMove('AI', from[0], from[1], to[0], to[1]);
+
+                        if (checkGameEnd()) {
+                            return;
+                        }
+
+                        currentPlayer = 'user';
+                        userMove();
+                    } else {
+                        console.error("Invalid AI move: No piece at fromCell");
+                    }
+                });
+            }
+
+            function logMove(player, fromRow, fromCol, toRow, toCol) {
+                const boardSize = boardMatrix.length;
+                const fromCoord = `${String.fromCharCode(65 + fromCol)}${boardSize - fromRow}`;
+                const toCoord = `${String.fromCharCode(65 + toCol)}${boardSize - toRow}`;
+                const move = `${player}: ${fromCoord} -> ${toCoord}`;
+
+                moveLog.textContent = move;
+            }
+
+            function checkGameEnd() {
+                const boardSize = boardMatrix.length;
+
+                for (let col = 0; col < boardSize; col++) {
+                    if ((userPieceClass === 'white-piece' && (boardMatrix[0][col] === 1 || boardMatrix[0][col] === 2)) ||
+                        (userPieceClass === 'black-piece' && (boardMatrix[0][col] === -1 || boardMatrix[0][col] === -2))) {
+                        showMessage('WINNER: YOU!!');
+                        return true;
+                    }
+                    if ((aiPieceClass === 'white-piece' && (boardMatrix[boardSize - 1][col] === 1 || boardMatrix[boardSize - 1][col] === 2)) ||
+                        (aiPieceClass === 'black-piece' && (boardMatrix[boardSize - 1][col] === -1 || boardMatrix[boardSize - 1][col] === -2))) {
+                        showMessage('WINNER: Artificial Intelligence!!');
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            function ready() {
+                const boardSize = parseInt(urlParams.get('board_size'));
+                const pieceColor = urlParams.get('piece_color');
+
+                currentPlayer = pieceColor === 'white' ? 'user' : 'ai';
+
+                fetch('/ready', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        board_size: boardSize,
+                        piece_color: pieceColor
+                    })
+                }).then(response => {
+                    if (response.ok) {
+                        document.getElementById('board').classList.remove('disabled');
+                        setTimeout(() => {
+                            document.querySelectorAll('.white-piece, .black-piece').forEach(piece => {
+                                piece.style.opacity = '1';
+                                piece.style.transform = 'translateY(0)';
+                            });
+                        }, 0);
+                        if (currentPlayer === 'ai') {
+                            aiMove();
+                        }
+                    } else {
+                        console.error('Failed to set the game as ready.');
+                    }
+                });
+            }
+
+            function userMove() {
+                fetch('/user_move', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        board_state: boardMatrix,
+                        piece_color: userPieceClass
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message === 'Game is draw.') {
+                        showMessage('Game is draw.');
+                    } else {
+                        console.log(data.message);
+                    }
+                });
+            }
+
+            function showMessage(message, duration = 0) {
+                const messageBox = document.getElementById('message-box');
+                const messageText = document.getElementById('message-text');
+
+                messageText.textContent = message;
+                messageBox.style.display = 'block';
+
+                if (duration > 0) {
+                    setTimeout(() => {
+                        messageBox.style.display = 'none';
+                    }, duration);
+                }
+            }
+
+            function closeMessageBox() {
+                const messageBox = document.getElementById('message-box');
+                messageBox.style.display = 'none';
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const boardSize = parseInt(urlParams.get('board_size'));
+            const pieceColor = urlParams.get('piece_color');
+
+            createBoard(boardSize, pieceColor);
+        </script>
+    </div>
+</body>
+</html>
