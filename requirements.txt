@@ -5,6 +5,7 @@ certifi==2022.5.18.1
 charset-normalizer==2.0.12
 coloredlogs==15.0.1
 flatbuffers==1.12
+Flask
 gast==0.4.0
 google-auth==2.8.0
 google-auth-oauthlib==0.4.6
